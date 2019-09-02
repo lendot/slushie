@@ -1,7 +1,8 @@
 import board
 import busio
-import adafruit_ssd1306
 import digitalio
+import adafruit_ssd1306
+import adafruit_mlx90614
 
 # default target temperature, in F
 DEFAULT_TARGET_TEMP = 26
@@ -13,6 +14,18 @@ MAX_TARGET_TEMP = 34
 START_BUTTON_PIN = board.D5
 UP_BUTTON_PIN = board.D9
 DOWN_BUTTON_PIN = board.D6
+
+
+# displays an error message
+def error(component,msg):
+    oled.fill(0)
+    component_msg = "{} error".format(component)
+    oled.text(component_msg,0,0,1)
+    print(component_msg)
+    oled.text(msg,0,10,1)
+    print(msg)
+    oled.show()
+
 
 # set up all the OLED featherwing buttons
 # create button objects
@@ -37,7 +50,10 @@ last_start_button_state = start_button.value
 
 
 # set up I2C
-i2c = busio.I2C(board.SCL, board.SDA)
+# the mlx90614 must be run at 100k [normal speed]
+# i2c default mode is is 400k [full speed]
+# the mlx90614 will not appear at the default 400k speed
+i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
 
 
 # set up the OLED
@@ -51,7 +67,19 @@ running = False
 
 # set up the temperature sensor
 target_temp = DEFAULT_TARGET_TEMP
-
+# initialize the mlx device
+try:
+    mlx = adafruit_mlx90614.MLX90614(i2c)
+except Exception as e:
+    # something went wrong; print an error and halt
+    if hasattr(e,'message'):
+        msg = e.message
+    else:
+        msg = str(e)
+        
+    error("temp sens",msg)
+    while True:
+        pass
 
 # update the display with current state
 def update_display():
