@@ -3,6 +3,7 @@ import busio
 import digitalio
 import adafruit_ssd1306
 import adafruit_mlx90614
+from analogio import AnalogIn
 
 # default target temperature, in F
 DEFAULT_TARGET_TEMP = 26
@@ -49,6 +50,10 @@ last_down_button_state = down_button.value
 last_start_button_state = start_button.value
 
 
+# initialize battery voltage pin
+vbat_voltage = AnalogIn(board.VOLTAGE_MONITOR)
+
+
 # set up I2C
 # the mlx90614 must be run at 100k [normal speed]
 # i2c default mode is is 400k [full speed]
@@ -81,20 +86,31 @@ except Exception as e:
     while True:
         pass
 
+# read battery voltage
+def get_voltage():
+    return (vbat_voltage.value * 3.3) / 65536 * 2
+
+
+# convert temperature from C to F
+def c_to_f(temp_c):
+    return temp_c * 1.8 + 32
+
 # update the display with current state
 def update_display():
     oled.fill(0)
     motor_text = "Running"
     if not running:
         motor_text = "Stopped"
-    oled.text("{}".format(motor_text),0,0,1)
+    battery_voltage = get_voltage()
+    oled.text("{}  Batt: {:.1f}V".format(motor_text,battery_voltage),0,0,1)
     oled.text("Target: {}F".format(target_temp),0,10,1)
+    oled.text("Temp: {:.0f}F  Amb: {:.0f}F".format(c_to_f(mlx.object_temperature),c_to_f(mlx.ambient_temperature)),0,20,1)
     oled.show()
 
 # determine if a button is being pressed
 def button_pressed(current_state,last_state):
     return current_state and not last_state
-    
+
 update_display()
 
 while True:
